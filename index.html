@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="card">
+    <div class="search">
+      <input type="text" placeholder="Enter city name" spellcheck="false" />
+      <button><img src="images/search.png" alt="Search" /></button>
+    </div>
+
+    <div class="error">
+      <p>Invalid city name</p>
+    </div>
+
+    <div class="weather">
+      <img src="images/rain.png" class="weather-icon" alt="Weather Icon" />
+      <h1 class="temp">22°C</h1>
+      <button class="toggle-unit">Switch to °F</button>
+      <h2 class="city">City Name</h2>
+      <p class="datetime">Loading time...</p>
+
+      <div class="details">
+        <div class="col">
+          <img src="images/humidity.png" alt="Humidity" />
+          <div>
+            <p class="humidity">50%</p>
+            <p>Humidity</p>
+          </div>
+        </div>
+        <div class="col">
+          <img src="images/wind.png" alt="Wind" />
+          <div>
+            <p class="wind">15 km/h</p>
+            <p>Wind Speed</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = "ab5d22fb7dc2f106df141a01f1922875";
+    const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
+
+    const searchBox = document.querySelector(".search input");
+    const searchBtn = document.querySelector(".search button");
+    const weatherIcon = document.querySelector(".weather-icon");
+    const toggleBtn = document.querySelector(".toggle-unit");
+
+    let tempCelsius = null;
+    let isCelsius = true;
+
+    async function checkWeather(city) {
+      const response = await fetch(apiUrl + city + `&appid=${apiKey}`);
+      if (response.status === 404) {
+        document.querySelector(".error").style.display = "block";
+        document.querySelector(".weather").style.display = "none";
+      } else {
+        const data = await response.json();
+
+        // Temperature
+        tempCelsius = data.main.temp;
+        isCelsius = true;
+        document.querySelector(".temp").innerHTML = Math.round(tempCelsius) + "°C";
+
+        // City and metrics
+        document.querySelector(".city").innerHTML = data.name;
+        document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
+        document.querySelector(".wind").innerHTML = data.wind.speed + " km/h";
+
+        // Time calculation using UTC
+        const timezoneOffset = data.timezone; // in seconds
+        const utc = new Date().getTime() + new Date().getTimezoneOffset() * 60000;
+        const localTime = new Date(utc + timezoneOffset * 1000);
+        document.querySelector(".datetime").innerHTML = localTime.toLocaleString("en-US", {
+          weekday: "long",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          day: "numeric",
+          month: "short",
+        });
+
+        // Weather icon logic
+        const weatherMain = data.weather[0].main;
+        switch (weatherMain) {
+          case "Clouds":
+            weatherIcon.src = "images/clouds.png";
+            break;
+          case "Clear":
+            weatherIcon.src = "images/clear.png";
+            break;
+          case "Rain":
+            weatherIcon.src = "images/rain.png";
+            break;
+          case "Drizzle":
+            weatherIcon.src = "images/drizzle.png";
+            break;
+          case "Mist":
+            weatherIcon.src = "images/mist.png";
+            break;
+          default:
+            weatherIcon.src = "images/clouds.png";
+        }
+
+        document.querySelector(".weather").style.display = "block";
+        document.querySelector(".error").style.display = "none";
+        toggleBtn.style.display = "inline-block";
+      }
+    }
+
+    searchBtn.addEventListener("click", () => {
+      if (searchBox.value !== "") {
+        checkWeather(searchBox.value);
+      }
+    });
+
+    toggleBtn.addEventListener("click", () => {
+      if (tempCelsius === null) return;
+      if (isCelsius) {
+        let tempF = (tempCelsius * 9) / 5 + 32;
+        document.querySelector(".temp").innerHTML = Math.round(tempF) + "°F";
+        toggleBtn.innerText = "Switch to °C";
+      } else {
+        document.querySelector(".temp").innerHTML = Math.round(tempCelsius) + "°C";
+        toggleBtn.innerText = "Switch to °F";
+      }
+      isCelsius = !isCelsius;
+    });
+
+    // Geolocation weather on page load
+    window.addEventListener("load", () => {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const { latitude, longitude } = position.coords;
+          fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${apiKey}`
+          )
+            .then((res) => res.json())
+            .then((data) => {
+              checkWeather(data.name);
+            });
+        });
+      }
+    });
+  </script>
+</body>
+</html>
